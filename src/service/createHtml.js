@@ -1,6 +1,5 @@
 import fs from "node:fs";
 import iconv from "iconv-lite";
-import { promises as fsPromises } from "node:fs";
 import { PATH_FILE, PATH_FOLDER, PATH_XML } from "../path.js";
 import {
   DELIMITER,
@@ -13,29 +12,13 @@ import {
   generateTableRow,
   generateHeaderHTML,
 } from "../utils/htmlMarkup.js";
-import readline from "node:readline";
-// import PDFDocument from "pdfkit";
-
-export const getSize = async (path) => {
-  try {
-    const { size } = await fsPromises.stat(path);
-    return size;
-  } catch (error) {
-    console.log(error);
-    return 0;
-  }
-};
+import { getSize } from "../utils/getFileSize.js";
+import { readXml } from "../utils/readXml.js";
 
 const len = await getSize(PATH_FILE);
-const lenXml = await getSize(PATH_XML);
+const receiptsXml = await readXml(PATH_FILE, len);
 
-const parseData = ({
-  len,
-  sdCardPath,
-  outputFolderPath,
-  lenXml = 0,
-  xmlPath,
-}) => {
+const createHtml = ({ len, sdCardPath, outputFolderPath, receiptsXml }) => {
   const startAddress = 0x10000;
   const endAddress = Math.floor((len - 0x100000) / 2) - 1 - 0x10000;
   const readStream = fs.createReadStream(sdCardPath, {
@@ -44,13 +27,15 @@ const parseData = ({
     highWaterMark: HIGH_WATER_MARK,
   });
 
+  // const writeStream = fs.createWriteStream(PATH_XML, {
+  //   encoding: "utf8",
+  // });
+  // writeStream.write("[\n");
   const outputStreams = new Map();
 
   let remaining = Buffer.alloc(0);
   let isOpen = false;
-
-  let DI = 0;
-  let startAddressXml = 0;
+  const types = {};
 
   readStream.on("data", async (chunk) => {
     remaining = Buffer.concat([remaining, chunk]);
@@ -82,28 +67,23 @@ const parseData = ({
       remaining = remaining.slice(receiptEnd, remaining.length);
 
       const info = getReceipt(receipt);
+      const outputFilePath = getFileName(info.info.dateTime, outputFolderPath);
 
-      const { month, year } = info.info.dateTime;
-      const monthYear = `${year + 1900}-${String(month + 1).padStart(2, "0")}`;
-      const outputFilePath = path.join(outputFolderPath, `${monthYear}.html`);
-
+      // const jsonData = JSON.stringify(info, null, 2);
+      // writeStream.write(jsonData);
+      // writeStream.write(",");
       let stream = null;
-      let xmlData = "No xml";
-      const currentDI = Number(info.info.numberDI);
-      if (DI !== currentDI && currentDI > 4) {
-        console.log("startAddressXml", startAddressXml);
-        const xmlInfo = await getXml(
-          startAddressXml,
-          lenXml,
-          xmlPath,
-          currentDI
-        );
-        console.log(xmlInfo);
-        startAddressXml = xmlInfo.nextStartPoint;
-        xmlData = xmlInfo.data;
-      }
 
-      console.log("await getXml()");
+      let currentXml = "";
+      const currentDI = Number(info.info.numberDI);
+      const receiptType = Number(info.info.receiptType);
+      if (receiptType === 17 || receiptType === 34) {
+        currentXml = binarySearch(receiptsXml, currentDI) || "Xml not found";
+      }
+      // test
+      types[info.info.receiptType] = types[info.info.receiptType]
+        ? types[info.info.receiptType] + 1
+        : 1;
 
       if (!outputStreams.has(outputFilePath)) {
         outputStreams.set(
@@ -113,20 +93,15 @@ const parseData = ({
         stream = outputStreams.get(outputFilePath);
         stream.write(generateHeaderHTML());
       }
-      if (Number(month) > 6) {
-        console.log("str1");
-        for (const st of outputStreams.values()) {
-          console.log("str");
-          st.write(generateFooterHTML());
-        }
-        readStream.destroy();
-      }
+
       stream = outputStreams.get(outputFilePath);
-      stream.write(generateTableRow({ info: info, xml: info.info.numberDI }));
+      stream.write(generateTableRow({ info: info, xml: currentXml }));
     }
   });
 
   readStream.on("end", () => {
+    // writeStream.write("\n]");
+    console.log(types);
     for (const stream of outputStreams.values()) {
       stream.write(generateFooterHTML());
     }
@@ -138,39 +113,25 @@ const parseData = ({
   });
 };
 
-const getXml = async (start, end, path, di, cb) => {
-  let nextStartPoint = start;
-  return new Promise((resolve, reject) => {
-    const readStream = fs.createReadStream(path, { start, end });
-    const regex = new RegExp(`<IDX=\\d+,${di}>`);
-
-    readStream.on("data", (chunk) => {
-      console.log(start);
-      const data = chunk.toString().split("\t");
-
-      for (let i = 0; i < data.length; i++) {
-        const isMatch = data[i].match(regex);
-        if (isMatch) {
-          nextStartPoint += data[i].length + 4;
-          resolve({ nextStartPoint, data: data[i] });
-          readStream.destroy();
-          return;
-        } else {
-          nextStartPoint += data[i].length + 4;
-        }
-      }
-      readStream.destroy();
-    });
-  });
-};
-
-parseData({
+createHtml({
   len,
   sdCardPath: PATH_FILE,
   outputFolderPath: PATH_FOLDER,
-  lenXml,
-  xmlPath: PATH_XML,
+  receiptsXml,
 });
+
+const getFileName = (dateTime, outputFolderPath) => {
+  const { month, year } = dateTime;
+  const monthYear = `${year + 1900}-${String(month + 1).padStart(2, "0")}`;
+  return path.join(outputFolderPath, `${monthYear}.html`);
+};
+
+function replaceCharacters(str) {
+  return str
+    .replace(/</g, "&lt;") // Replace < with &lt;
+    .replace(/>/g, "&gt;") // Replace > with &gt;
+    .replace(/\//g, "&sol;"); // Replace / with &sol;
+}
 
 const findStartMark = (hex, index, buff) => {
   if (hex === 0x01 && index + 5 < buff.length) {
@@ -226,27 +187,44 @@ const getReceipt = (receipts) => {
 
     const lineText = parseTextLine(decodedReceipt[i]);
     data.push(lineText);
-    const numberDI = extractSecondNumber(lineText.text);
-    if (numberDI) {
-      info.numberDI = numberDI;
+    const details = extractDetails(lineText.text);
+    if (details) {
+      info.numberDI = details.secondNumber;
+      info.closeDateTime = details.date;
     }
     if (
       ["СЛУЖБОВИЙ ЧЕК", "ФIСКАЛЬНИЙ ЧЕК", "ВИДАТКОВИЙ ЧЕК"].includes(
         lineText.text
       )
-    )
+    ) {
       break;
+    }
   }
 
   return { info, data };
 };
+function containsSimilarStructure(str) {
+  const regex = /ЗН\s+КС\d+\s+ФН\d+/;
+  return regex.test(str);
+}
 
-function extractSecondNumber(inputString) {
-  const regex = /^\d+\s+(\d+)\s+\d{2}-\d{2}-\d{4}\s+\d{2}:\d{2}:\d{2}$/;
+function extractDetails(inputString) {
+  const regex =
+    /^\d+\s+(\d+)\s+(\d{2})-(\d{2})-(\d{4})\s+(\d{2}):(\d{2}):(\d{2})$/;
   const match = inputString.match(regex);
 
-  if (match && match[1]) {
-    return match[1];
+  if (match) {
+    return {
+      secondNumber: match[1],
+      date: {
+        day: match[2],
+        month: match[3],
+        year: match[4],
+        hour: match[5],
+        minutes: match[6],
+        seconds: match[7],
+      },
+    };
   }
   return null;
 }
@@ -259,7 +237,7 @@ const decodeNonPrintableCharacters = (buffer) => {
     } else if (buffer[i] === 0x14 && i + 1 < buffer.length) {
       const repeatChar = decoded[decoded.length - 1];
       const repeatCount = buffer[++i];
-      for (let j = 0; j < repeatCount; j++) {
+      for (let j = 0; j < repeatCount - 1; j++) {
         decoded.push(repeatChar);
       }
     } else {
@@ -278,8 +256,6 @@ const parseTextLine = (buffer) => {
 const parseReceiptInfo = (buffer, offset = 0) => {
   return {
     receiptStatus: buffer.readUInt32LE(offset),
-    beginAddress: buffer.readUInt32LE(offset + 4),
-    endAddress: buffer.readUInt32LE(offset + 8),
     lastReceiptLine: buffer.readUInt32LE(offset + 12),
     nReceipt: buffer.readUInt32LE(offset + 16),
     nRefundReceipt: buffer.readUInt32LE(offset + 20),
@@ -291,14 +267,44 @@ const parseReceiptInfo = (buffer, offset = 0) => {
       day: buffer.readUInt8(offset + 31),
       month: buffer.readUInt8(offset + 32),
       year: buffer.readUInt8(offset + 33),
-      dayOfWeek: buffer.readUInt8(offset + 34),
-      daylightSavingFlag: buffer.readUInt8(offset + 35),
-      dayOfYear: buffer.readUInt16LE(offset + 36),
     },
     receiptType: buffer.readUInt8(offset + 38),
-    padding1: buffer.readUInt8(offset + 39),
     closureNumber: buffer.readUInt16LE(offset + 40),
-    padding2: buffer.readUInt16LE(offset + 42),
   };
 };
+
+function extractIdx(entry) {
+  const match = entry.match(/<IDX=\d+,(\d+)>/);
+  return match ? parseInt(match[1], 10) : null;
+}
+
+// function extractTS(entry) {
+//   const match = entry.match(/<TS>(\d{14})<\/TS>/);
+//   return match ? match[1] : null;
+// }
+
+// Binary search function
+function binarySearch(data, targetIdx) {
+  let low = 0;
+  let high = data.length - 1;
+
+  // const dataString =
+  //   date.year + date.month + date.day + date.hour + date.minutes + date.seconds;
+
+  // if xml not found try find it
+  while (low <= high) {
+    const mid = Math.floor((low + high) / 2);
+    const midIdx = extractIdx(data[mid]);
+
+    if (midIdx === targetIdx) {
+      return replaceCharacters(data[mid]);
+    } else if (midIdx < targetIdx) {
+      low = mid + 1;
+    } else {
+      high = mid - 1;
+    }
+  }
+
+  return "Xml not found!";
+}
 //  ---------------------------

@@ -1,8 +1,8 @@
 import path from "node:path";
 
-export const PATH_FILE = path.join(process.cwd(), "files", "SD_test2_dd.img");
+export const PATH_FILE = path.join(process.cwd(), "files", "КРЦ_тест.img");
 
-export const PATH_XML = path.join(process.cwd(), "files", "data.xml");
+export const PATH_XML = path.join(process.cwd(), "files", "data.json");
 
 export const PATH_TEXT_EJ = path.join(
   process.cwd(),

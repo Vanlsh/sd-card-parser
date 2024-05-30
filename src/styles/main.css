@@ -1,0 +1,15 @@
+.container-main {
+  padding: 10px 10px 0;
+}
+.is-closed {
+  display: none;
+}
+/* // {
+//   dateTimeOfFormatting: 2020-08-17T06:49:00.000Z,
+//   fiscalPrinterSerialNumber: 'КС00020959',
+//   stateOfSDCardAfterErasing: 0,
+//   electronicJournalIdentification: 'DATECSFPA-KLEN',
+//   charactersPerLine: 48,
+//   electronicJournalNumber: 0,
+//   size: 3980394496
+// } */

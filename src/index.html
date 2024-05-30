@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Electron File Parser</title>
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; script-src 'self'"
+    />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="stylesheet" href="./styles/main.css" />
+    <link
+      rel="stylesheet"
+      href="../node_modules/bootstrap/dist/css/bootstrap.min.css"
+    />
+  </head>
+  <body>
+    <div class="container-main">
+      <div class="action-wrapper mb-2">
+        <button id="select-file" class="btn btn-primary btn-sm">
+          Вибрати файл
+        </button>
+        <button id="select-folder" class="btn btn-primary btn-sm ml-5">
+          <span>Завантажити дані з SD</span>
+          <span
+            class="spinner-border spinner-border-sm visually-hidden"
+            aria-hidden="true"
+          ></span>
+          <span class="visually-hidden" role="status">Формування HTML...</span>
+        </button>
+      </div>
+      <div class="mb-2">
+        <div id="file-path" class="alert alert-warning is-closed" role="alert">
+          Спочатку виберіть файл!
+        </div>
+        <div id="error" class="alert alert-danger is-closed" role="alert">
+          Щось пішло не так!
+        </div>
+        <div id="success" class="alert alert-success is-closed" role="alert">
+          Файли успішно згенеровані за шляхом:
+          <button id="html-folder" type="button" class="btn btn-link">
+            Link
+          </button>
+        </div>
+      </div>
+      <div id="ksef-info" class="container-sm m-0 is-closed">
+        <h3>Інформація про КСЕФ</h3>
+        <table class="table">
+          <tbody>
+            <tr>
+              <td>Заводський номер:</td>
+              <td id="serial-number">КС00020959</td>
+            </tr>
+            <tr>
+              <td>Тип КСЕФ:</td>
+              <td id="identification">'DATECSFPA-KLEN'</td>
+            </tr>
+            <tr>
+              <td>КСЕФ №:</td>
+              <td id="ksef-num">1</td>
+            </tr>
+            <tr>
+              <td>Дата та час форматування:</td>
+              <td id="date-created">2020-08-09 06:49:00</td>
+            </tr>
+            <tr>
+              <td>Розмір даних:</td>
+              <td id="size">3980394496</td>
+            </tr>
+            <tr>
+              <td>Максимальна к-ть символів у рядку:</td>
+              <td id="max-chars">48</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <p id="status"></p>
+    </div>
+    <script type="module" src="./renderer.js"></script>
+  </body>
+</html>

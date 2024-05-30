@@ -1,6 +1,6 @@
 import fs from "node:fs";
 import iconv from "iconv-lite";
-import { PATH_FILE, PATH_FOLDER, PATH_XML } from "../path.js";
+// import { PATH_FILE, PATH_FOLDER, PATH_XML } from "../path.js";
 import {
   DELIMITER,
   BUFFER_ENCODING,
@@ -12,113 +12,117 @@ import {
   generateTableRow,
   generateHeaderHTML,
 } from "../utils/htmlMarkup.js";
-import { getSize } from "../utils/getFileSize.js";
-import { readXml } from "../utils/readXml.js";
+// import { getSize } from "../utils/getFileSize.js";
+// import { readXml } from "../utils/readXml.js";
 
-const len = await getSize(PATH_FILE);
-const receiptsXml = await readXml(PATH_FILE, len);
+// const len = await getSize(PATH_FILE);
+// const receiptsXml = await readXml(PATH_FILE, len);
 
-const createHtml = ({ len, sdCardPath, outputFolderPath, receiptsXml }) => {
+export const createHtml = ({
+  len,
+  sdCardPath,
+  outputFolderPath,
+  receiptsXml,
+}) => {
   const startAddress = 0x10000;
   const endAddress = Math.floor((len - 0x100000) / 2) - 1 - 0x10000;
-  const readStream = fs.createReadStream(sdCardPath, {
-    start: startAddress,
-    end: endAddress,
-    highWaterMark: HIGH_WATER_MARK,
-  });
 
-  // const writeStream = fs.createWriteStream(PATH_XML, {
-  //   encoding: "utf8",
-  // });
-  // writeStream.write("[\n");
-  const outputStreams = new Map();
+  return new Promise((resolve, reject) => {
+    const readStream = fs.createReadStream(sdCardPath, {
+      start: startAddress,
+      end: endAddress,
+      highWaterMark: HIGH_WATER_MARK,
+    });
 
-  let remaining = Buffer.alloc(0);
-  let isOpen = false;
-  const types = {};
+    const outputStreams = new Map();
 
-  readStream.on("data", async (chunk) => {
-    remaining = Buffer.concat([remaining, chunk]);
+    let remaining = Buffer.alloc(0);
+    let isOpen = false;
+    const types = {};
 
-    while (remaining.length > 0) {
-      let receipt = null;
-      let receiptStart = 0;
+    readStream.on("data", async (chunk) => {
+      remaining = Buffer.concat([remaining, chunk]);
 
-      if (!isOpen) {
-        receiptStart = remaining.findIndex(findStartMark);
-        if (receiptStart !== -1) remaining = remaining.slice(receiptStart + 5);
-      }
-      if (receiptStart < 0) {
-        remaining = Buffer.alloc(0);
-        return;
-      }
+      while (remaining.length > 0) {
+        let receipt = null;
+        let receiptStart = 0;
 
-      isOpen = true;
+        if (!isOpen) {
+          receiptStart = remaining.findIndex(findStartMark);
+          if (receiptStart !== -1)
+            remaining = remaining.slice(receiptStart + 5);
+        }
+        if (receiptStart < 0) {
+          remaining = Buffer.alloc(0);
+          return;
+        }
 
-      const receiptEnd = remaining.findIndex(findEndMark);
+        isOpen = true;
 
-      if (receiptEnd < 0) {
-        return;
-      }
+        const receiptEnd = remaining.findIndex(findEndMark);
 
-      isOpen = false;
+        if (receiptEnd < 0) {
+          return;
+        }
 
-      receipt = splitBuffer(remaining.slice(0, receiptEnd));
-      remaining = remaining.slice(receiptEnd, remaining.length);
+        isOpen = false;
 
-      const info = getReceipt(receipt);
-      const outputFilePath = getFileName(info.info.dateTime, outputFolderPath);
+        receipt = splitBuffer(remaining.slice(0, receiptEnd));
+        remaining = remaining.slice(receiptEnd, remaining.length);
 
-      // const jsonData = JSON.stringify(info, null, 2);
-      // writeStream.write(jsonData);
-      // writeStream.write(",");
-      let stream = null;
-
-      let currentXml = "";
-      const currentDI = Number(info.info.numberDI);
-      const receiptType = Number(info.info.receiptType);
-      if (receiptType === 17 || receiptType === 34) {
-        currentXml = binarySearch(receiptsXml, currentDI) || "Xml not found";
-      }
-      // test
-      types[info.info.receiptType] = types[info.info.receiptType]
-        ? types[info.info.receiptType] + 1
-        : 1;
-
-      if (!outputStreams.has(outputFilePath)) {
-        outputStreams.set(
-          outputFilePath,
-          fs.createWriteStream(outputFilePath, { flags: "a" })
+        const info = getReceipt(receipt);
+        const outputFilePath = getFileName(
+          info.info.dateTime,
+          outputFolderPath
         );
+
+        let stream = null;
+
+        let currentXml = "";
+        const currentDI = Number(info.info.numberDI);
+        const receiptType = Number(info.info.receiptType);
+        if (receiptType === 17 || receiptType === 34) {
+          currentXml = binarySearch(receiptsXml, currentDI) || "Xml not found";
+        }
+        types[info.info.receiptType] = types[info.info.receiptType]
+          ? types[info.info.receiptType] + 1
+          : 1;
+
+        if (!outputStreams.has(outputFilePath)) {
+          outputStreams.set(
+            outputFilePath,
+            fs.createWriteStream(outputFilePath, { flags: "a" })
+          );
+          stream = outputStreams.get(outputFilePath);
+          stream.write(generateHeaderHTML());
+        }
+
         stream = outputStreams.get(outputFilePath);
-        stream.write(generateHeaderHTML());
+        stream.write(generateTableRow({ info: info, xml: currentXml }));
       }
+    });
 
-      stream = outputStreams.get(outputFilePath);
-      stream.write(generateTableRow({ info: info, xml: currentXml }));
-    }
-  });
+    readStream.on("end", () => {
+      for (const stream of outputStreams.values()) {
+        stream.write(generateFooterHTML());
+      }
+      resolve();
+      console.log(`Parsed data written to ${outputFolderPath}`);
+    });
 
-  readStream.on("end", () => {
-    // writeStream.write("\n]");
-    console.log(types);
-    for (const stream of outputStreams.values()) {
-      stream.write(generateFooterHTML());
-    }
-    console.log(`Parsed data written to ${outputFolderPath}`);
-  });
-
-  readStream.on("error", (err) => {
-    console.error("Error reading the file:", err);
+    readStream.on("error", (err) => {
+      reject(err);
+      console.error("Error reading the file:", err);
+    });
   });
 };
 
-createHtml({
-  len,
-  sdCardPath: PATH_FILE,
-  outputFolderPath: PATH_FOLDER,
-  receiptsXml,
-});
+// createHtml({
+//   len,
+//   sdCardPath: PATH_FILE,
+//   outputFolderPath: PATH_FOLDER,
+//   receiptsXml,
+// });
 
 const getFileName = (dateTime, outputFolderPath) => {
   const { month, year } = dateTime;
@@ -203,10 +207,6 @@ const getReceipt = (receipts) => {
 
   return { info, data };
 };
-function containsSimilarStructure(str) {
-  const regex = /ЗН\s+КС\d+\s+ФН\d+/;
-  return regex.test(str);
-}
 
 function extractDetails(inputString) {
   const regex =
@@ -278,20 +278,11 @@ function extractIdx(entry) {
   return match ? parseInt(match[1], 10) : null;
 }
 
-// function extractTS(entry) {
-//   const match = entry.match(/<TS>(\d{14})<\/TS>/);
-//   return match ? match[1] : null;
-// }
-
 // Binary search function
 function binarySearch(data, targetIdx) {
   let low = 0;
   let high = data.length - 1;
 
-  // const dataString =
-  //   date.year + date.month + date.day + date.hour + date.minutes + date.seconds;
-
-  // if xml not found try find it
   while (low <= high) {
     const mid = Math.floor((low + high) / 2);
     const midIdx = extractIdx(data[mid]);
@@ -307,4 +298,3 @@ function binarySearch(data, targetIdx) {
 
   return "Xml not found!";
 }
-//  ---------------------------

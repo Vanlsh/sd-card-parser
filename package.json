@@ -1,12 +1,22 @@
 {
-  "name": "sd-card",
+  "name": "electronic-journal",
   "version": "1.0.0",
-  "description": "",
+  "description": "ELECTRONIC JOURNAL PARSER",
   "main": "src/main.js",
   "type": "module",
   "scripts": {
     "start": "electron .",
-    "test": "node src/service/getSDInfo.js"
+    "test": "node src/service/getSDInfo.js",
+    "dist": "electron-builder"
+  },
+  "build": {
+    "appId": "com.yourdomain.electronicjournal",
+    "win": {
+      "target": "nsis"
+    },
+    "directories": {
+      "output": "dist"
+    }
   },
   "author": "",
   "license": "ISC",

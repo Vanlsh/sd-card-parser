@@ -3,7 +3,6 @@
   "version": "1.0.0",
   "description": "ELECTRONIC JOURNAL PARSER",
   "main": "src/main.js",
-  "type": "module",
   "scripts": {
     "start": "electron .",
     "test": "node src/service/getSDInfo.js",
@@ -22,10 +21,10 @@
   "license": "ISC",
   "dependencies": {
     "bootstrap": "^5.3.3",
+    "electron": "^22.0.0",
     "iconv-lite": "^0.6.3"
   },
   "devDependencies": {
-    "electron": "^30.0.9",
     "electron-builder": "^24.13.3"
   }
 }

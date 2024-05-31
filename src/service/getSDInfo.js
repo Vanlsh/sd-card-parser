@@ -1,22 +1,10 @@
-import fs from "node:fs";
-import fsPromises from "node:fs/promises";
+const fs = require("node:fs");
+const fsPromises = require("node:fs/promises");
 
-import path from "node:path";
-import { parseFirstPartData } from "../parsers/index.js";
+const path = require("node:path");
+const { parseFirstPartData } = require("../parsers/index.js");
 
-export const PATH_FILE = path.join(process.cwd(), "files", "КРЦ_тест.img");
-
-// {
-//   dateTimeOfFormatting: 2020-08-17T06:49:00.000Z,
-//   fiscalPrinterSerialNumber: 'КС00020959',
-//   stateOfSDCardAfterErasing: 0,
-//   electronicJournalIdentification: 'DATECSFPA-KLEN',
-//   charactersPerLine: 48,
-//   electronicJournalNumber: 0,
-//   size: 3980394496
-// }
-
-export async function getSDInfo(filePath) {
+async function getSDInfo(filePath) {
   try {
     const { size } = await fsPromises.stat(filePath);
     const infoBuffer = await readFromFile(filePath);
@@ -58,3 +46,7 @@ function readFromFile(filePath) {
     });
   });
 }
+
+module.exports = {
+  getSDInfo,
+};

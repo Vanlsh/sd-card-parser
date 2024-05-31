@@ -1,10 +1,10 @@
-import { app, BrowserWindow, ipcMain, dialog } from "electron";
-import { getSDInfo } from "./service/getSDInfo.js";
-import { createHtml } from "./service/createHtml.js";
-import { readXml } from "./utils/readXml.js";
-import { exec } from "child_process";
-import fs from "node:fs";
-import path from "node:path";
+const { app, BrowserWindow, ipcMain, dialog } = require("electron");
+const { getSDInfo } = require("./service/getSDInfo.js");
+const { createHtml } = require("./service/createHtml.js");
+const { readXml } = require("./utils/readXml.js");
+const { exec } = require("child_process");
+const fs = require("node:fs");
+const path = require("node:path");
 
 let mainWindow;
 
@@ -20,7 +20,7 @@ function createWindow() {
 
   mainWindow.loadFile("src/index.html");
 
-  // mainWindow.webContents.openDevTools();
+  mainWindow.webContents.openDevTools();
 
   mainWindow.on("closed", function () {
     mainWindow = null;

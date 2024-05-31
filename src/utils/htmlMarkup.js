@@ -1,4 +1,4 @@
-export const generateTableRow = ({ xml, info }) => {
+const generateTableRow = ({ xml, info }) => {
   const receipt = info.data.map((item) => `<pre>${item.text}</pre>`);
   return `
   <tr><td colspan="2"><div class="info"><span>Global No.: ${
@@ -16,7 +16,7 @@ const getDateFormate = (date) => {
 };
 
 // Function to generate the HTML content dynamically
-export const generateHeaderHTML = () => {
+const generateHeaderHTML = () => {
   const header = `
     <!DOCTYPE html>
     <html lang="en">
@@ -42,7 +42,7 @@ export const generateHeaderHTML = () => {
   return header;
 };
 
-export const generateFooterHTML = () => {
+const generateFooterHTML = () => {
   return `
         </tbody>
       </table>
@@ -50,3 +50,5 @@ export const generateFooterHTML = () => {
     </html>
   `;
 };
+
+module.exports = { generateFooterHTML, generateHeaderHTML, generateTableRow };

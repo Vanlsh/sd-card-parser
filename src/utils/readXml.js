@@ -1,7 +1,7 @@
-import fs from "node:fs";
-import iconv from "iconv-lite";
+const fs = require("node:fs");
+const iconv = require("iconv-lite");
 
-export const readXml = async (sdCardPath, sdSize) => {
+const readXml = async (sdCardPath, sdSize) => {
   const startAddress = Math.floor((sdSize - 0x100000) / 2);
   const endAddress = sdSize - 0x100000;
   const chunkSize = 64 * 1024;
@@ -73,4 +73,8 @@ const getXmlDocument = (sections) => {
   const macSection = sections[2] + SPLIT_MARKER;
 
   return `${indexSection}${datSection}${macSection}\n`;
+};
+
+module.exports = {
+  readXml,
 };

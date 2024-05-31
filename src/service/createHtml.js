@@ -1,29 +1,18 @@
-import fs from "node:fs";
-import iconv from "iconv-lite";
-// import { PATH_FILE, PATH_FOLDER, PATH_XML } from "../path.js";
-import {
+const fs = require("node:fs");
+const iconv = require("iconv-lite");
+const {
   DELIMITER,
   BUFFER_ENCODING,
   HIGH_WATER_MARK,
-} from "../constants/index.js";
-import path from "node:path";
-import {
+} = require("../constants/index.js");
+const path = require("node:path");
+const {
   generateFooterHTML,
   generateTableRow,
   generateHeaderHTML,
-} from "../utils/htmlMarkup.js";
-// import { getSize } from "../utils/getFileSize.js";
-// import { readXml } from "../utils/readXml.js";
+} = require("../utils/htmlMarkup.js");
 
-// const len = await getSize(PATH_FILE);
-// const receiptsXml = await readXml(PATH_FILE, len);
-
-export const createHtml = ({
-  len,
-  sdCardPath,
-  outputFolderPath,
-  receiptsXml,
-}) => {
+const createHtml = ({ len, sdCardPath, outputFolderPath, receiptsXml }) => {
   const startAddress = 0x10000;
   const endAddress = Math.floor((len - 0x100000) / 2) - 1 - 0x10000;
 
@@ -298,3 +287,7 @@ function binarySearch(data, targetIdx) {
 
   return "Xml not found!";
 }
+
+module.exports = {
+  createHtml,
+};

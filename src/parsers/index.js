@@ -1,7 +1,7 @@
-import iconv from "iconv-lite";
-import { BUFFER_ENCODING } from "../constants/index.js";
+const iconv = require("iconv-lite");
+const { BUFFER_ENCODING } = require("../constants/index.js");
 
-export function parseFirstPartData(data) {
+function parseFirstPartData(data) {
   const formattedData = {
     dateTimeOfFormatting: parseDOSDateTime(data.slice(0, 4)),
     fiscalPrinterSerialNumber: iconv
@@ -42,3 +42,5 @@ function parseDOSDateTime(dataTimeBuffer) {
   const { hours, minutes, seconds } = parseDOSTime(timeBuffer);
   return new Date(year, month - 1, day, hours, minutes, seconds);
 }
+
+module.exports = { parseFirstPartData };
